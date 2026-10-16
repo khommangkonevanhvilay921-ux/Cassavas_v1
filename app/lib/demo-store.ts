@@ -2,7 +2,8 @@ import "server-only";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { DEMO_ACCOUNTS, type DemoOffer, type DemoState } from "@/app/lib/demo-types";
+import { DEMO_ACCOUNTS, type DemoAccount, type DemoOffer, type DemoPrice, type DemoState } from "@/app/lib/demo-types";
+import { getOfficialPrice } from "@/app/lib/pricing";
 
 const storePath = path.join(process.cwd(), ".local-data", "cassavalink-demo.json");
 let pendingWrite: Promise<unknown> = Promise.resolve();
@@ -57,15 +58,12 @@ function seedState(): DemoState {
     { id: "offer-nam-thon-green", listingId: "listing-nam-thon", farmerId: "farmer-demo-3", factoryId: DEMO_ACCOUNTS.factory.id, pricePerKg: 1620, quantityKg: 6000, transportArrangement: "factory-pickup" as const, transportationCost: 350000, farmerTransportCost: 0, pickupDate: dateOffset(19), paymentTerms: "Within 2 business days after inspection", inspectionTerms: "Moisture and starch lab inspection at factory", expirationDate: dateOffset(3), additionalConditions: "Sample offer for factory account", status: "pending" as const, counterPricePerKg: null, counterQuantityKg: null, createdAt: createdOffset(1), updatedAt: createdOffset(1), history: [{ status: "pending", by: DEMO_ACCOUNTS.factory.id, note: "Initial purchase offer", at: createdOffset(1) }] },
   ];
   offers.unshift(
-    { id: "offer-completed-ban-na", listingId: "listing-ban-na", farmerId: DEMO_ACCOUNTS.farmer.id, factoryId: DEMO_ACCOUNTS.factory.id, pricePerKg: 1550, quantityKg: 3800, transportArrangement: "factory-pickup", transportationCost: 390000, farmerTransportCost: 0, pickupDate: dateOffset(-18), paymentTerms: "Confirmed after weighbridge receipt", inspectionTerms: "Joint sample inspection", expirationDate: dateOffset(-20), additionalConditions: "Sample completed sale", status: "accepted", counterPricePerKg: null, counterQuantityKg: null, createdAt: createdOffset(24), updatedAt: createdOffset(20), history: [{ status: "accepted", by: DEMO_ACCOUNTS.farmer.id, note: "Sample offer accepted; quantity reserved.", at: createdOffset(20) }, { status: "pending", by: DEMO_ACCOUNTS.factory.id, note: "Sample historical offer", at: createdOffset(24) }] },
-    { id: "offer-transit-tha-bok", listingId: "listing-tha-bok", farmerId: DEMO_ACCOUNTS.farmer.id, factoryId: DEMO_ACCOUNTS.factory.id, pricePerKg: 1570, quantityKg: 2500, transportArrangement: "factory-pickup", transportationCost: 160000, farmerTransportCost: 0, pickupDate: dateOffset(-1), paymentTerms: "Payment after final inspection", inspectionTerms: "Final scale weight at factory", expirationDate: dateOffset(-5), additionalConditions: "Sample active procurement", status: "accepted", counterPricePerKg: null, counterQuantityKg: null, createdAt: createdOffset(7), updatedAt: createdOffset(5), history: [{ status: "accepted", by: DEMO_ACCOUNTS.farmer.id, note: "Sample offer accepted; quantity reserved.", at: createdOffset(5) }, { status: "pending", by: DEMO_ACCOUNTS.factory.id, note: "Sample historical offer", at: createdOffset(7) }] },
+    { id: "offer-completed-ban-na", listingId: "listing-ban-na", farmerId: DEMO_ACCOUNTS.farmer.id, factoryId: DEMO_ACCOUNTS.factory.id, pricePerKg: 1550, quantityKg: 3800, transportArrangement: "factory-pickup", transportationCost: 390000, farmerTransportCost: 0, pickupDate: dateOffset(-18), paymentTerms: "Confirm directly after weighing", inspectionTerms: "Joint sample inspection", expirationDate: dateOffset(-20), additionalConditions: "Sample accepted offer for direct follow-up", status: "accepted", counterPricePerKg: null, counterQuantityKg: null, createdAt: createdOffset(24), updatedAt: createdOffset(20), history: [{ status: "accepted", by: DEMO_ACCOUNTS.farmer.id, note: "Sample offer accepted; coordinate directly with the buyer.", at: createdOffset(20) }, { status: "pending", by: DEMO_ACCOUNTS.factory.id, note: "Sample historical offer", at: createdOffset(24) }] },
+    { id: "offer-transit-tha-bok", listingId: "listing-tha-bok", farmerId: DEMO_ACCOUNTS.farmer.id, factoryId: DEMO_ACCOUNTS.factory.id, pricePerKg: 1570, quantityKg: 2500, transportArrangement: "factory-pickup", transportationCost: 160000, farmerTransportCost: 0, pickupDate: dateOffset(-1), paymentTerms: "Discuss payment directly", inspectionTerms: "Final scale weight at factory", expirationDate: dateOffset(-5), additionalConditions: "Sample accepted offer for direct follow-up", status: "accepted", counterPricePerKg: null, counterQuantityKg: null, createdAt: createdOffset(7), updatedAt: createdOffset(5), history: [{ status: "accepted", by: DEMO_ACCOUNTS.farmer.id, note: "Sample offer accepted; coordinate directly with the buyer.", at: createdOffset(5) }, { status: "pending", by: DEMO_ACCOUNTS.factory.id, note: "Sample historical offer", at: createdOffset(7) }] },
   );
-  const transactions = [
-    { id: "CL-2026-0018", offerId: "offer-completed-ban-na", listingId: "listing-ban-na", farmId: "farm-ban-na", farmerId: DEMO_ACCOUNTS.farmer.id, factoryId: DEMO_ACCOUNTS.factory.id, quantityKg: 3800, finalWeightKg: 3700, pricePerKg: 1550, finalGrade: "A" as const, transportationCost: 390000, farmerTransportCost: 0, deductions: 100000, grossAmount: 5735000, netAmount: 5635000, paymentStatus: "confirmed" as const, deliveryStatus: "Completed", status: "COMPLETED" as const, receiptConfirmed: true, disputeReason: null, createdAt: createdOffset(20), history: [{ status: "COMPLETED", by: DEMO_ACCOUNTS.farmer.id, note: "Demo receipt confirmed after external payment confirmation.", at: createdOffset(18) }, { status: "PAYMENT_CONFIRMED", by: DEMO_ACCOUNTS.factory.id, note: "Sample payment status confirmation; no money transferred by demo.", at: createdOffset(19) }] },
-    { id: "CL-2026-0021", offerId: "offer-transit-tha-bok", listingId: "listing-tha-bok", farmId: "farm-tha-bok", farmerId: DEMO_ACCOUNTS.farmer.id, factoryId: DEMO_ACCOUNTS.factory.id, quantityKg: 2500, finalWeightKg: null, pricePerKg: 1570, finalGrade: null, transportationCost: 160000, farmerTransportCost: 0, deductions: 0, grossAmount: 3925000, netAmount: 3925000, paymentStatus: "pending" as const, deliveryStatus: "In transit", status: "IN_TRANSIT" as const, receiptConfirmed: false, disputeReason: null, createdAt: createdOffset(5), history: [{ status: "IN_TRANSIT", by: DEMO_ACCOUNTS.factory.id, note: "Sample procurement shipment is in transit.", at: createdOffset(1) }, { status: "AWAITING_PICKUP", by: DEMO_ACCOUNTS.factory.id, note: "Sample pickup scheduled.", at: createdOffset(4) }, { status: "OFFER_ACCEPTED", by: DEMO_ACCOUNTS.farmer.id, note: "Sample offer accepted; quantity reserved.", at: createdOffset(5) }] },
-  ];
-  listings.find((listing) => listing.id === "listing-tha-bok")!.availableQuantityKg = 5000;
-  const prices = [];
+  listings.find((listing) => listing.id === "listing-ban-na")!.availableQuantityKg = 12000;
+  listings.find((listing) => listing.id === "listing-tha-bok")!.availableQuantityKg = 7500;
+  const prices: DemoPrice[] = [];
   for (const region of [
     ["Bolikhamxay", "Pakkading", 1600], ["Bolikhamxay", "Viengthong", 1570],
     ["Vientiane Province", "Thoulakhom", 1540], ["Xaysomboun", "Anouvong", 1500],
@@ -83,9 +81,29 @@ function seedState(): DemoState {
       }
     }
   }
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Vientiane", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  for (const factory of [
+    { id: DEMO_ACCOUNTS.factory.id, name: "Green Valley Starch Co.", province: "Vientiane Province", district: "Thoulakhom", base: 1540 },
+    { id: "factory-mekong-roots", name: "Mekong Roots Processing", province: "Bolikhamxay", district: "Pakkading", base: 1600 },
+    { id: "factory-nam-ngum", name: "Nam Ngum Agro Works", province: "Xaysomboun", district: "Anouvong", base: 1500 },
+  ]) {
+    for (const grade of ["A", "B", "C"] as const) {
+      prices.unshift({
+        id: `official-${factory.id}-${grade}`,
+        province: factory.province,
+        district: factory.district,
+        grade,
+        pricePerKg: factory.base + (grade === "A" ? 80 : grade === "C" ? -100 : 0),
+        source: `Official factory daily price · ${factory.name} (prototype sample)`,
+        effectiveDate: today,
+        priceType: "official",
+        factoryId: factory.id,
+      });
+    }
+  }
   return {
-    schemaVersion: 2,
-    farms, assessments, listings, offers, transactions, prices,
+    schemaVersion: 4,
+    farms, assessments, listings, offers, accounts: [], prices,
     notifications: [
       { id: "notification-offer-1", userId: DEMO_ACCOUNTS.farmer.id, title: "New buyer offer", message: "Green Valley Starch offered 1,640 LAK/kg for Ban Na harvest.", type: "offer", readAt: null, createdAt: createdOffset(1) },
       { id: "notification-offer-2", userId: DEMO_ACCOUNTS.farmer.id, title: "Another offer to compare", message: "Mekong Roots Processing made an offer on Ban Na harvest.", type: "offer", readAt: null, createdAt: createdOffset(2) },
@@ -99,26 +117,72 @@ function seedState(): DemoState {
 
 async function readStore(): Promise<DemoState> {
   try {
-    const stored = JSON.parse(await readFile(storePath, "utf8")) as Partial<DemoState>;
-    if (stored.schemaVersion === 2) return stored as DemoState;
+    const stored = JSON.parse(await readFile(storePath, "utf8")) as Partial<DemoState> & { transactions?: unknown };
+    if (stored.schemaVersion === 4) {
+      Reflect.deleteProperty(stored, "transactions");
+      stored.accounts ??= [];
+      return stored as DemoState;
+    }
 
     const seeded = seedState();
     const migrated = { ...seeded, ...stored } as DemoState;
+    Reflect.deleteProperty(migrated, "transactions");
     migrated.factoryProfiles = stored.factoryProfiles ?? seeded.factoryProfiles;
     migrated.farms = stored.farms ?? seeded.farms;
     migrated.assessments = stored.assessments ?? seeded.assessments;
     migrated.listings = stored.listings ?? seeded.listings;
     migrated.offers = stored.offers ?? seeded.offers;
     migrated.prices = stored.prices ?? seeded.prices;
-    migrated.notifications = stored.notifications ?? seeded.notifications;
+    migrated.notifications = (stored.notifications ?? seeded.notifications).filter((notification) => !["transaction", "payment", "dispute"].includes(notification.type));
     migrated.messages = stored.messages ?? [];
-    migrated.transactions = stored.transactions?.length ? stored.transactions : seeded.transactions;
+    migrated.accounts = (stored.accounts ?? []).map((account) => {
+      const oldStatus = account.status as string;
+      const status: DemoAccount["status"] = oldStatus === "approved"
+        ? "Approved"
+        : oldStatus === "rejected"
+          ? "Rejected"
+          : oldStatus === "pending"
+            ? "Pending Admin Approval"
+            : oldStatus === "Pending Verification" || oldStatus === "Pending Admin Approval" || oldStatus === "Approved" || oldStatus === "Rejected"
+              ? oldStatus
+              : "Pending Admin Approval";
+      return {
+        ...account,
+        email: account.email ?? null,
+        phone: account.phone ?? null,
+        contactMethod: account.contactMethod ?? "email",
+        status,
+        submittedAt: account.submittedAt ?? account.createdAt,
+        verificationCode: account.verificationCode ?? "",
+        rejectionReason: account.rejectionReason ?? null,
+        kycDocumentType: account.kycDocumentType ?? "Family Book",
+        kycDocuments: account.kycDocuments ?? [],
+      };
+    });
+    if (!migrated.prices.some((price) => price.priceType === "official")) {
+      migrated.prices.push(...seeded.prices.filter((price) => price.priceType === "official"));
+    }
+    for (const offer of migrated.offers) {
+      if (!offer.middlemanId || (offer.status !== "pending" && offer.status !== "countered")) continue;
+      const listing = migrated.listings.find((item) => item.id === offer.listingId);
+      const farm = listing && migrated.farms.find((item) => item.id === listing.farmId);
+      const officialPrice = listing && farm
+        ? getOfficialPrice(migrated.prices, farm.province, farm.district, listing.estimatedGrade)
+        : null;
+      if (officialPrice) offer.pricePerKg = officialPrice.pricePerKg;
+      offer.counterPricePerKg = null;
+      offer.counterQuantityKg = null;
+      if (offer.status === "countered") offer.status = "pending";
+    }
     for (const seededOffer of seeded.offers.filter((offer) => offer.id.startsWith("offer-completed-") || offer.id.startsWith("offer-transit-"))) {
       if (!migrated.offers.some((offer) => offer.id === seededOffer.id)) migrated.offers.push(seededOffer);
     }
-    const transitListing = migrated.listings.find((listing) => listing.id === "listing-tha-bok");
-    if (transitListing?.availableQuantityKg === 7500 && !stored.transactions?.length) transitListing.availableQuantityKg = 5000;
-    migrated.schemaVersion = 2;
+    for (const offer of migrated.offers) {
+      for (const event of offer.history) {
+        if (event.note.includes("quantity reserved")) event.note = "Offer accepted; coordinate directly with the other party.";
+      }
+    }
+    migrated.schemaVersion = 4;
     await persist(migrated);
     return migrated;
   } catch (error) {

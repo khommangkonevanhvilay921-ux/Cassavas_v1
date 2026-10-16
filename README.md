@@ -2,11 +2,20 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## CassavaLink local demo
 
-The farmer, factory, and admin workspaces share a persistent local JSON store at `.local-data/cassavalink-demo.json`. It is created and seeded on the first API request and is intentionally ignored by Git. The store uses a versioned migration when its schema changes; it is a local prototype adapter, not suitable for Vercel or multi-instance production deployment. Replace `app/lib/demo-store.ts` with a PostgreSQL/Prisma repository before production.
+The farmer, factory, middleman, and admin workspaces share a persistent local JSON store at `.local-data/cassavalink-demo.json`. It is created and seeded on the first API request and is intentionally ignored by Git. Schema version 4 adds email/phone registration, KYC uploads, verification and approval statuses, and official factory prices while preserving existing farm, listing, offer, reference-price, message, and factory data. The store is a local prototype adapter, not suitable for Vercel or multi-instance production deployment. Replace `app/lib/demo-store.ts` with a production database repository before launch.
 
-Start the app from this directory with `npm run dev`. Visit `/login` and choose one of the three fictional demo accounts. No password is used in local demo mode. The HTTP-only role cookie is signed with a development-only local secret. Set `DEMO_SESSION_SECRET` (or `AUTH_SECRET`) to a unique random value before using demo sessions in a production deployment; the demo store itself is not production-safe.
+Start the app from this directory with `npm run dev`. On `/register`, users can register a Farmer, Factory, or Middleman account using email or phone, select a Family Book, National ID Card, or optional Passport upload, and complete a simulated OTP step. The page displays demo code `246810`; no real email or SMS is sent. Uploads accept JPG, PNG, or WebP images up to 2 MB each, with a maximum of 6 Family Book pages, 2 National ID images, or 1 Passport image. Accounts remain `Pending Admin Approval` after verification and cannot access role-specific pages until approved at `/admin/registrations`. Approval does not verify a Factory business profile; the existing factory verification step remains separate. In local development, `/login` also offers fictional Farmer, Factory, and Middleman sample workspaces. Verified factories can publish today's official buying prices; middlemen can request purchases only at the matched official price and cannot offer or negotiate a different price. Any sale and payment take place directly outside CassavaLink.
 
-All reference prices, farm listings, factories, offers, and transaction fixtures are fictional and labeled DEMO DATA. Payment confirmation records a status only; no payment is transferred. Mock quality checks are simulated visual assessments, not laboratory measurements.
+Set these values in an untracked `.env.local` file to use the administrator workspace:
+
+```env
+DEMO_SESSION_SECRET=<unique random value of at least 32 characters>
+DEMO_ADMIN_SECRET=<separate unique random value of at least 16 characters>
+```
+
+The administrator signs in with `DEMO_ADMIN_SECRET`; the administrator role cannot be requested during registration or selected as a demo account. In production, set `DEMO_SESSION_SECRET` or `AUTH_SECRET` and `DEMO_ADMIN_SECRET` to independently generated secrets. Do not commit these values. The local JSON store and sample identities are for development only and are not safe for production hosting.
+
+All official prices, reference prices, farm listings, factories, and offers are fictional demo data. KYC files are stored locally in the prototype's JSON data file; use only test documents. Approval, OTP verification, and image review are simulated frontend flows, not secure identity verification or production authorization. CassavaLink provides market information and buyer contacts; parties arrange any sale and payment outside the platform. Mock quality checks are simulated visual assessments, not laboratory measurements.
 
 Run checks with `npm run lint`, `npm test`, and `npm run build`.
 

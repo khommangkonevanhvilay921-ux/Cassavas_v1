@@ -23,7 +23,7 @@ const content: Record<string, { eyebrow: string; title: string; intro: string; h
   prices: {
     eyebrow: "Market prices",
     title: "Reference prices, with the source in view.",
-    intro: "Reference prices are separate from individual buyer offers and final agreed transaction prices.",
+    intro: "Reference prices are separate from individual buyer offers and prices agreed directly by farmers and factories.",
     heading: "DEMO DATA · Regional reference price",
     body: "Bolikhamxay · Fresh roots · 1,600 LAK/kg · Example source: Provincial market bulletin · Effective 26 Sep 2026. This sample is not a live market quote and should not be used as a guaranteed selling price.",
   },
@@ -39,35 +39,35 @@ const content: Record<string, { eyebrow: string; title: string; intro: string; h
     title: "A little help with getting started.",
     intro: "CassavaLink is being developed to make farm discovery and offer comparison simpler for people on both sides of the market.",
     heading: "Using the demo",
-    body: "Choose a farmer or factory portal to explore its dashboard. All names, accounts, listings, and prices shown in this prototype are fictional demo data. Registration, messaging, offer submission, and payments are not active yet.",
+    body: "Choose a farmer or factory portal to explore its dashboard. All sample accounts, listings, and prices are fictional. New registrations require administrator approval before account access is enabled.",
   },
   terms: {
     eyebrow: "Terms",
     title: "Terms of use",
     intro: "This prototype is provided for product evaluation and demonstration only.",
     heading: "Demo content",
-    body: "All sample users, businesses, listings, prices, and transactions are fictional. This prototype does not constitute an offer to buy or sell cassava and does not provide legal, financial, or agricultural advice.",
+    body: "All sample users, businesses, listings, and prices are fictional. This prototype does not constitute an offer to buy or sell cassava and does not provide legal, financial, or agricultural advice. CassavaLink does not process sales or payments.",
   },
   privacy: {
     eyebrow: "Privacy",
     title: "Your farm location should stay yours.",
     intro: "The platform is designed to keep precise farm coordinates and private contact details out of public marketplace views.",
     heading: "Prototype privacy notice",
-    body: "This Stage 1 preview does not collect or store account information. Privacy controls and the full data policy will be implemented before registration and marketplace transactions are enabled.",
+    body: "Registration details and password hashes are stored in the existing local project data file. Do not use real personal information in this prototype; a production privacy policy and database remain necessary before public launch.",
   },
   login: {
     eyebrow: "Sign in",
-    title: "Account access is coming soon.",
-    intro: "Authentication will be added with account registration and server-enforced role permissions.",
+    title: "Sign in to your account.",
+    intro: "Sign in after your account has been approved by an administrator.",
     heading: "Explore the portal previews",
-    body: "The current Stage 1 dashboards use sample accounts and do not require a login.",
+    body: "Registered Farmer and Factory accounts can access the platform after administrator approval.",
   },
   register: {
     eyebrow: "Join CassavaLink",
-    title: "Choose how you want to participate.",
-    intro: "Farmer and factory registration will be enabled with secure account creation in a later stage.",
-    heading: "Explore a demo workspace",
-    body: "Choose a portal to preview its dashboard. No account is created and no personal information is collected in this prototype.",
+    title: "Request a CassavaLink account.",
+    intro: "Register as a Farmer or Factory and wait for administrator review before signing in.",
+    heading: "Administrator approval required",
+    body: "New accounts remain pending until an administrator approves them. Sales and payments take place outside CassavaLink.",
   },
 };
 
@@ -107,7 +107,7 @@ export default async function PublicInfoPage({ params }: PageProps<"/[slug]">) {
         <SiteHeader />
         <main>
           <section className="info-hero"><div className="container"><span className="section-kicker">{page.eyebrow} · DEMO DATA</span><h1>{page.title}</h1><p>{page.intro}</p></div></section>
-          <section className="container info-content"><div className="notice notice-neutral">Sample admin-managed reference entries. These are not live quotes, individual buyer offers, or final transaction prices.</div><div className="panel table-panel"><table><thead><tr><th>Province / district</th><th>Grade</th><th>LAK/kg</th><th>LAK/tonne</th><th>Source</th><th>Effective date</th></tr></thead><tbody>{prices.map((price) => <tr key={price.id}><td>{price.province} · {price.district}</td><td>Grade {price.grade}</td><td>{price.pricePerKg.toLocaleString()}</td><td>{(price.pricePerKg * 1000).toLocaleString()}</td><td>{price.source}</td><td>{price.effectiveDate}</td></tr>)}</tbody></table></div><p className="muted-copy">Last updated date is shown for each sample record. Compare a reference price with actual buyer offers before making a selling decision.</p></section>
+          <section className="container info-content"><div className="notice notice-neutral">Sample admin-managed reference entries. These are not live quotes, individual buyer offers, or final prices agreed directly by the parties.</div><div className="panel table-panel"><table><thead><tr><th>Province / district</th><th>Grade</th><th>LAK/kg</th><th>LAK/tonne</th><th>Source</th><th>Effective date</th></tr></thead><tbody>{prices.map((price) => <tr key={price.id}><td>{price.province} · {price.district}</td><td>Grade {price.grade}</td><td>{price.pricePerKg.toLocaleString()}</td><td>{(price.pricePerKg * 1000).toLocaleString()}</td><td>{price.source}</td><td>{price.effectiveDate}</td></tr>)}</tbody></table></div><p className="muted-copy">Last updated date is shown for each sample record. Compare a reference price with actual buyer offers before making a selling decision.</p></section>
         </main>
       </>
     );

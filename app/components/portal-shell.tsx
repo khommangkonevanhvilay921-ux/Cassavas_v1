@@ -1,13 +1,14 @@
 import Link from "next/link";
 import {
   ArrowDownRight, ArrowUpRight, Bell, ChartNoAxesCombined, CircleDollarSign,
-  ClipboardList, Factory, Handshake, House, MapPin, MessageCircle,
-  PackageCheck, Settings, ShieldCheck, Sprout, Users, Wheat, type LucideIcon,
+  Factory, Handshake, House, MapPin, MessageCircle,
+  Settings, ShieldCheck, Sprout, Users, Wheat, type LucideIcon,
 } from "lucide-react";
 import { Brand } from "@/app/components/site-header";
-import type { DemoRole } from "@/app/lib/demo-types";
 
-const portalNavigation: Record<DemoRole, { label: string; href: string; icon: LucideIcon }[]> = {
+type PortalRole = "farmer" | "factory" | "admin";
+
+const portalNavigation: Record<PortalRole, { label: string; href: string; icon: LucideIcon }[]> = {
   farmer: [
     { label: "Dashboard", href: "/farmer/dashboard", icon: House },
     { label: "My farms", href: "/farmer/farms", icon: Sprout },
@@ -16,7 +17,6 @@ const portalNavigation: Record<DemoRole, { label: string; href: string; icon: Lu
     { label: "Market prices", href: "/farmer/prices", icon: CircleDollarSign },
     { label: "Buyer offers", href: "/farmer/offers", icon: Handshake },
     { label: "Messages", href: "/farmer/messages", icon: MessageCircle },
-    { label: "Transactions", href: "/farmer/transactions", icon: ClipboardList },
     { label: "Profile", href: "/farmer/profile", icon: Users },
   ],
   factory: [
@@ -25,16 +25,14 @@ const portalNavigation: Record<DemoRole, { label: string; href: string; icon: Lu
     { label: "Find farms", href: "/factory/marketplace", icon: Sprout },
     { label: "Market prices", href: "/factory/prices", icon: CircleDollarSign },
     { label: "My offers", href: "/factory/offers", icon: Handshake },
-    { label: "Procurement", href: "/factory/procurement", icon: PackageCheck },
-    { label: "Transactions", href: "/factory/transactions", icon: ClipboardList },
     { label: "Messages", href: "/factory/messages", icon: MessageCircle },
     { label: "Company profile", href: "/factory/profile", icon: Factory },
     { label: "Settings", href: "/factory/settings", icon: Settings },
   ],
   admin: [
     { label: "Price management", href: "/admin/prices", icon: CircleDollarSign },
-    { label: "Marketplace", href: "/factory/marketplace", icon: MapPin },
-    { label: "Transactions", href: "/factory/transactions", icon: ClipboardList },
+    { label: "Marketplace", href: "/admin/marketplace", icon: MapPin },
+    { label: "Account approvals", href: "/admin/registrations", icon: Users },
     { label: "Audit and review", href: "/admin/audit-logs", icon: ShieldCheck },
   ],
 };
@@ -44,7 +42,7 @@ export function PortalShell({
   activeHref,
   children,
 }: {
-  role: DemoRole;
+  role: PortalRole;
   activeHref: string;
   children: React.ReactNode;
 }) {
@@ -98,7 +96,7 @@ export function TrendPanel({ factory = false }: { factory?: boolean }) {
   const heights = factory ? [35, 45, 39, 57, 49, 69, 62, 76, 65, 87, 77, 93] : [46, 52, 43, 61, 55, 68, 58, 74, 67, 79, 73, 89];
   return (
     <section className="panel">
-      <div className="panel-head"><h2>{factory ? "Monthly procurement" : "Regional price trend"}</h2><Link href={factory ? "/factory/prices" : "/farmer/prices"}>View details</Link></div>
+      <div className="panel-head"><h2>{factory ? "Monthly price trend" : "Regional price trend"}</h2><Link href={factory ? "/factory/prices" : "/farmer/prices"}>View details</Link></div>
       <div className="chart-bars" aria-label="Illustrative 12-week trend chart">
         {heights.map((height, index) => <span className="chart-bar" style={{ height: `${height}%` }} key={index} />)}
       </div>
@@ -109,8 +107,8 @@ export function TrendPanel({ factory = false }: { factory?: boolean }) {
 
 export function ActivityPanel({ factory = false }: { factory?: boolean }) {
   const activities = factory
-    ? [["New listing near Bolikhamxay", "Available harvest · 3 hours ago"], ["Offer accepted by farmer", "Harvest #CL-024 · Yesterday"], ["Pickup scheduled", "Green Valley collection · 24 Sep"]]
-    : [["New buyer offer received", "Mekong Roots · 2 hours ago"], ["Harvest listing updated", "Farm Ban Na · Yesterday"], ["Sale completed", "Transaction #CL-018 · 24 Sep"]];
+    ? [["New listing near Bolikhamxay", "Available harvest · 3 hours ago"], ["Offer accepted by farmer", "Harvest #CL-024 · Yesterday"], ["Regional reference updated", "Bolikhamxay prices · 24 Sep"]]
+    : [["New buyer offer received", "Mekong Roots · 2 hours ago"], ["Harvest listing updated", "Farm Ban Na · Yesterday"], ["Factory contact details updated", "Green Valley · 24 Sep"]];
   return (
     <section className="panel">
       <div className="panel-head"><h2>Recent activity</h2><Link href={factory ? "/factory/messages" : "/farmer/offers"}>See all</Link></div>

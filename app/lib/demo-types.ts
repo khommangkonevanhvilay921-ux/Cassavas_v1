@@ -1,17 +1,10 @@
-export type DemoRole = "farmer" | "factory" | "admin";
+export type DemoRole = "farmer" | "factory" | "middleman" | "admin";
 export type ListingStatus = "available" | "paused" | "sold" | "cancelled";
 export type OfferStatus = "pending" | "accepted" | "rejected" | "countered" | "expired" | "withdrawn";
-export type TransactionStatus =
-  | "OFFER_ACCEPTED"
-  | "AWAITING_PICKUP"
-  | "IN_TRANSIT"
-  | "DELIVERED"
-  | "INSPECTION_PENDING"
-  | "PAYMENT_PENDING"
-  | "PAYMENT_CONFIRMED"
-  | "COMPLETED"
-  | "DISPUTED"
-  | "CANCELLED";
+export type AccountStatus = "Pending Verification" | "Pending Admin Approval" | "Approved" | "Rejected";
+export type KycDocumentType = "Family Book" | "National ID Card" | "Passport";
+
+export const DEMO_OTP_CODE = "246810";
 
 export type DemoFarm = {
   id: string;
@@ -64,7 +57,8 @@ export type DemoOffer = {
   id: string;
   listingId: string;
   farmerId: string;
-  factoryId: string;
+  factoryId?: string;
+  middlemanId?: string;
   pricePerKg: number;
   quantityKg: number;
   transportArrangement: "factory-pickup" | "farmer-delivery" | "shared";
@@ -83,29 +77,21 @@ export type DemoOffer = {
   history: { status: string; by: string; note: string; at: string }[];
 };
 
-export type DemoTransaction = {
+export type DemoAccount = {
   id: string;
-  offerId: string;
-  listingId: string;
-  farmId: string;
-  farmerId: string;
-  factoryId: string;
-  quantityKg: number;
-  finalWeightKg: number | null;
-  pricePerKg: number;
-  finalGrade: "A" | "B" | "C" | null;
-  transportationCost: number;
-  farmerTransportCost: number;
-  deductions: number;
-  grossAmount: number;
-  netAmount: number;
-  paymentStatus: "pending" | "initiated" | "confirmed";
-  deliveryStatus: string;
-  status: TransactionStatus;
-  receiptConfirmed: boolean;
-  disputeReason: string | null;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  contactMethod: "email" | "phone";
+  role: "farmer" | "factory" | "middleman";
+  passwordHash: string;
+  status: AccountStatus;
   createdAt: string;
-  history: { status: string; by: string; note: string; at: string }[];
+  submittedAt: string | null;
+  verificationCode: string;
+  rejectionReason: string | null;
+  kycDocumentType: KycDocumentType;
+  kycDocuments: { name: string; type: string; size: number; dataUrl: string }[];
 };
 
 export type DemoPrice = {
@@ -116,6 +102,8 @@ export type DemoPrice = {
   pricePerKg: number;
   source: string;
   effectiveDate: string;
+  priceType?: "reference" | "official";
+  factoryId?: string;
 };
 
 export type DemoNotification = {
@@ -152,7 +140,7 @@ export type DemoState = {
   assessments: DemoAssessment[];
   listings: DemoListing[];
   offers: DemoOffer[];
-  transactions: DemoTransaction[];
+  accounts: DemoAccount[];
   prices: DemoPrice[];
   notifications: DemoNotification[];
   messages: DemoMessage[];
@@ -162,6 +150,7 @@ export type DemoState = {
 export const DEMO_ACCOUNTS: Record<DemoRole, { id: string; name: string; location: string; verified: boolean }> = {
   farmer: { id: "farmer-phonethip", name: "Phonethip S.", location: "Bolikhamxay Province", verified: true },
   factory: { id: "factory-green-valley", name: "Green Valley Starch Co.", location: "Vientiane Province", verified: true },
+  middleman: { id: "middleman-demo", name: "Local Middleman Demo", location: "Vientiane Capital", verified: true },
   admin: { id: "admin-demo", name: "CassavaLink Admin", location: "Vientiane Capital", verified: true },
 };
 

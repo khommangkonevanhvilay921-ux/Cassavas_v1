@@ -487,5 +487,4 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
   .portal-sidebar, .portal-topbar, .workspace-session, .workspace-tools, .record-actions, .workspace-actions { display: none !important; }
   .portal { display: block; background: white; }
   .portal-content { max-width: none; padding: 0; }
-  .transaction-card { break-inside: avoid; }
 }

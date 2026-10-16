@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDemoIdentity } from "@/app/lib/demo-session";
 import { getDemoState, updateDemoState } from "@/app/lib/demo-store";
-import { calculatePrice } from "@/app/lib/pricing";
-import { type DemoAssessment, type DemoFarm, type DemoListing, type DemoMessage, type DemoNotification, type DemoOffer, type DemoPrice, type DemoRole, type DemoState, type DemoTransaction, type ListingStatus, type TransactionStatus } from "@/app/lib/demo-types";
+import { calculatePrice, getOfficialPrice } from "@/app/lib/pricing";
+import { DEMO_ACCOUNTS, type DemoAccount, type DemoAssessment, type DemoFarm, type DemoListing, type DemoMessage, type DemoNotification, type DemoOffer, type DemoPrice, type DemoRole, type DemoState, type ListingStatus } from "@/app/lib/demo-types";
 
 export const runtime = "nodejs";
 
@@ -35,7 +35,6 @@ function safeState(state: DemoState) {
     assessments: state.assessments,
     listings: state.listings,
     offers: state.offers,
-    transactions: state.transactions,
     prices: state.prices,
     notifications: state.notifications,
     messages: state.messages,
@@ -45,6 +44,23 @@ function safeState(state: DemoState) {
 
 function publicFarm(farm: DemoFarm) {
   return { id: farm.id, farmerId: farm.farmerId, name: farm.name, variety: farm.variety, areaHectares: farm.areaHectares, estimatedProductionKg: farm.estimatedProductionKg, expectedHarvestDate: farm.expectedHarvestDate, province: farm.province, district: farm.district, village: farm.village, photos: farm.photos, status: farm.status, createdAt: farm.createdAt };
+}
+
+function publicAccount(account: DemoAccount) {
+  return {
+    id: account.id,
+    name: account.name,
+    email: account.email,
+    phone: account.phone,
+    contactMethod: account.contactMethod,
+    role: account.role,
+    status: account.status,
+    createdAt: account.createdAt,
+    submittedAt: account.submittedAt,
+    rejectionReason: account.rejectionReason,
+    kycDocumentType: account.kycDocumentType,
+    kycDocuments: account.kycDocuments,
+  };
 }
 
 function pushNotification(state: DemoState, userId: string, title: string, message: string, type: string) {
@@ -81,15 +97,29 @@ export async function GET(request: Request) {
   if (view === "prices") return NextResponse.json({ prices: data.prices, factories: data.factories, listings: state.listings.map((listing) => { const farm = state.farms.find((item) => item.id === listing.farmId); return { id: listing.id, province: farm?.province ?? "Laos", district: farm?.district ?? "", variety: listing.variety, availableQuantityKg: listing.availableQuantityKg, estimatedGrade: listing.estimatedGrade }; }) });
   if (view === "farmer") {
     if (identity?.role !== "farmer" && identity?.role !== "admin") return error("Sign in to view farmer records.", 403);
-    return NextResponse.json({ ...data, farms: state.farms.filter((farm) => farm.farmerId === identity.id).map(publicFarm), listings: state.listings.filter((listing) => listing.farmerId === identity.id), offers: state.offers.filter((offer) => offer.farmerId === identity.id), transactions: state.transactions.filter((transaction) => transaction.farmerId === identity.id), assessments: state.assessments.filter((assessment) => assessment.farmerId === identity.id), notifications: state.notifications.filter((notification) => notification.userId === identity.id), messages: state.messages.filter((message) => message.senderId === identity.id || message.recipientId === identity.id) });
+    return NextResponse.json({ ...data, farms: state.farms.filter((farm) => farm.farmerId === identity.id).map(publicFarm), listings: state.listings.filter((listing) => listing.farmerId === identity.id), offers: state.offers.filter((offer) => offer.farmerId === identity.id), assessments: state.assessments.filter((assessment) => assessment.farmerId === identity.id), notifications: state.notifications.filter((notification) => notification.userId === identity.id), messages: state.messages.filter((message) => message.senderId === identity.id || message.recipientId === identity.id) });
   }
   if (view === "factory") {
     if (identity?.role !== "factory" && identity?.role !== "admin") return error("Sign in to view factory records.", 403);
-    return NextResponse.json({ ...data, farms: state.farms.map(publicFarm), assessments: state.assessments.map((assessment) => ({ id: assessment.id, farmerId: assessment.farmerId, grade: assessment.grade, damage: assessment.damage, foreignMaterial: assessment.foreignMaterial, confidence: assessment.confidence, provider: assessment.provider, createdAt: assessment.createdAt })), offers: state.offers.filter((offer) => offer.factoryId === identity.id), transactions: state.transactions.filter((transaction) => transaction.factoryId === identity.id), notifications: state.notifications.filter((notification) => notification.userId === identity.id), messages: state.messages.filter((message) => message.senderId === identity.id || message.recipientId === identity.id) });
+    return NextResponse.json({ ...data, farms: state.farms.map(publicFarm), assessments: state.assessments.map((assessment) => ({ id: assessment.id, farmerId: assessment.farmerId, grade: assessment.grade, damage: assessment.damage, foreignMaterial: assessment.foreignMaterial, confidence: assessment.confidence, provider: assessment.provider, createdAt: assessment.createdAt })), offers: state.offers.filter((offer) => offer.factoryId === identity.id), notifications: state.notifications.filter((notification) => notification.userId === identity.id), messages: state.messages.filter((message) => message.senderId === identity.id || message.recipientId === identity.id) });
+  }
+  if (view === "middleman") {
+    if (identity?.role !== "middleman" && identity?.role !== "admin") return error("Middleman access is required.", 403);
+    const listings = state.listings.filter((listing) => listing.status === "available" && listing.availableQuantityKg > 0);
+    const farmIds = new Set(listings.map((listing) => listing.farmId));
+    return NextResponse.json({
+      farms: state.farms.filter((farm) => farm.status === "active" && farmIds.has(farm.id)).map(publicFarm),
+      listings,
+      offers: state.offers.filter((offer) => offer.middlemanId === identity.id),
+      prices: state.prices,
+      notifications: state.notifications.filter((notification) => notification.userId === identity.id),
+      messages: state.messages.filter((message) => message.senderId === identity.id || message.recipientId === identity.id),
+      factories: state.factoryProfiles,
+    });
   }
   if (view === "admin") {
     if (identity?.role !== "admin") return error("Administrator access is required.", 403);
-    return NextResponse.json(data);
+    return NextResponse.json({ ...data, accounts: state.accounts.map(publicAccount) });
   }
   return error("Choose a data view.");
 }
@@ -170,20 +200,29 @@ export async function POST(request: Request) {
         return listing;
       }
       if (action === "create-offer") {
-        if (roleError(identity, "factory")) throw new Error("403:Factory access required to submit an offer.");
+        if (identity.role !== "factory" && identity.role !== "middleman") throw new Error("403:Factory or middleman access is required to submit an offer.");
+        if (identity.role === "middleman" && payload.pricePerKg !== undefined) {
+          throw new Error("Middleman purchase requests do not accept a submitted price; the official factory price is applied automatically.");
+        }
         const listingId = text(payload.listingId, 100); const match = listingWithFarm(state, listingId);
         const factory = state.factoryProfiles.find((item) => item.id === identity.id);
-        const pricePerKg = numeric(payload.pricePerKg, 1, 100_000); const quantityKg = numeric(payload.quantityKg, 1, 1_000_000);
-        if (!factory?.verified) throw new Error("This factory is not verified and cannot submit offers.");
+        const officialPrice = identity.role === "middleman" && match
+          ? getOfficialPrice(state.prices, match.farm.province, match.farm.district, match.listing.estimatedGrade)
+          : null;
+        const pricePerKg = identity.role === "middleman" ? officialPrice?.pricePerKg ?? null : numeric(payload.pricePerKg, 1, 100_000);
+        if (identity.role === "factory" && !factory?.verified) throw new Error("This factory is not verified and cannot submit offers.");
         if (!match || match.listing.status !== "available" || match.listing.availableQuantityKg < 1) throw new Error("This harvest is no longer available.");
-        if (!pricePerKg || !quantityKg || quantityKg > match.listing.availableQuantityKg) throw new Error("Enter a valid price and a quantity within the harvest's available amount.");
+        const quantityKg = numeric(payload.quantityKg, 1, 1_000_000);
+        if (identity.role === "middleman" && !officialPrice) throw new Error("No official factory price is published for this listing's location and grade.");
+        if (!pricePerKg || !quantityKg || quantityKg > match.listing.availableQuantityKg) throw new Error("Enter a valid quantity within the harvest's available amount.");
         const arrangement = payload.transportArrangement === "farmer-delivery" || payload.transportArrangement === "shared" ? payload.transportArrangement : "factory-pickup";
         const transportationCost = numeric(payload.transportationCost ?? 0, 0, 100_000_000);
         if (transportationCost === null) throw new Error("Enter a valid transportation cost.");
         const calculation = calculatePrice({ pricePerKg, quantityKg, transportArrangement: arrangement, transportationCost });
-        const offer: DemoOffer = { id: `offer-${crypto.randomUUID()}`, listingId, farmerId: match.listing.farmerId, factoryId: identity.id, pricePerKg, quantityKg, transportArrangement: arrangement, transportationCost, farmerTransportCost: calculation.farmerTransportCost, pickupDate: text(payload.pickupDate, 20) || dateAfter(14), paymentTerms: text(payload.paymentTerms, 240) || "Payment within 2 business days after inspection", inspectionTerms: text(payload.inspectionTerms, 240) || "Visual quality inspection and weighbridge confirmation", expirationDate: text(payload.expirationDate, 20) || dateAfter(7), additionalConditions: text(payload.additionalConditions, 400), status: "pending", counterPricePerKg: null, counterQuantityKg: null, createdAt: now, updatedAt: now, history: [{ status: "pending", by: identity.id, note: "Offer submitted", at: now }] };
+        const offer: DemoOffer = { id: `offer-${crypto.randomUUID()}`, listingId, farmerId: match.listing.farmerId, ...(identity.role === "factory" ? { factoryId: identity.id } : { middlemanId: identity.id }), pricePerKg, quantityKg, transportArrangement: arrangement, transportationCost, farmerTransportCost: calculation.farmerTransportCost, pickupDate: text(payload.pickupDate, 20) || dateAfter(14), paymentTerms: text(payload.paymentTerms, 240) || "Any sale and payment are arranged directly outside CassavaLink.", inspectionTerms: text(payload.inspectionTerms, 240) || "Inspection to be arranged directly by both parties.", expirationDate: text(payload.expirationDate, 20) || dateAfter(7), additionalConditions: text(payload.additionalConditions, 400), status: "pending", counterPricePerKg: null, counterQuantityKg: null, createdAt: now, updatedAt: now, history: [{ status: "pending", by: identity.id, note: "Offer submitted for direct follow-up outside CassavaLink", at: now }] };
         state.offers.unshift(offer);
-        pushNotification(state, offer.farmerId, "New buyer offer", `${factory.name} offered ${pricePerKg.toLocaleString()} LAK/kg for ${quantityKg.toLocaleString()} kg.`, "offer");
+        const buyerName = identity.role === "factory" ? factory?.name ?? "Factory" : (identity.id === DEMO_ACCOUNTS.middleman.id ? DEMO_ACCOUNTS.middleman.name : state.accounts.find((account) => account.id === identity.id)?.name ?? "Middleman");
+        pushNotification(state, offer.farmerId, identity.role === "middleman" ? "Purchase request at official price" : "New buyer offer", `${buyerName} ${identity.role === "middleman" ? "requested" : "offered"} ${pricePerKg.toLocaleString()} LAK/kg for ${quantityKg.toLocaleString()} kg.`, "offer");
         return offer;
       }
       if (action === "update-offer") {
@@ -203,30 +242,30 @@ export async function POST(request: Request) {
       if (action === "respond-offer") {
         const offer = state.offers.find((item) => item.id === payload.offerId);
         if (!offer) throw new Error("Offer not found.");
+        const buyerId = offer.middlemanId ?? offer.factoryId;
+        if (!buyerId) throw new Error("This offer has no buyer account.");
         if (offer.status !== "pending" && offer.status !== "countered") throw new Error("This offer can no longer be changed.");
         const todayInLaos = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Vientiane", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
         if (offer.expirationDate < todayInLaos) { offer.status = "expired"; throw new Error("This offer has expired."); }
         const decision = payload.decision;
+        if (decision === "counter" && offer.middlemanId) {
+          throw new Error("Negotiated prices are disabled for middleman purchases; the official factory price must be used.");
+        }
         if (decision === "accept") {
           if (identity.role !== "farmer" || identity.id !== offer.farmerId) throw new Error("403:Only the listed farmer can accept this offer.");
           const match = listingWithFarm(state, offer.listingId);
-          const agreedQuantity = offer.counterQuantityKg ?? offer.quantityKg;
-          const agreedPrice = offer.counterPricePerKg ?? offer.pricePerKg;
+          const agreedQuantity = offer.middlemanId ? offer.quantityKg : offer.counterQuantityKg ?? offer.quantityKg;
+          const agreedPrice = offer.middlemanId ? offer.pricePerKg : offer.counterPricePerKg ?? offer.pricePerKg;
           if (!match || match.listing.status !== "available" || match.listing.availableQuantityKg < agreedQuantity) throw new Error("Not enough available harvest remains to accept this offer.");
-          match.listing.availableQuantityKg -= agreedQuantity;
-          if (match.listing.availableQuantityKg === 0) match.listing.status = "sold";
           offer.status = "accepted"; offer.pricePerKg = agreedPrice; offer.quantityKg = agreedQuantity;
-          offerHistory(offer, "accepted", identity.id, "Farmer accepted the offer; quantity reserved.");
-          const calculation = calculatePrice({ pricePerKg: agreedPrice, quantityKg: agreedQuantity, transportArrangement: offer.transportArrangement, transportationCost: offer.transportationCost });
-          const transaction: DemoTransaction = { id: `CL-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`, offerId: offer.id, listingId: offer.listingId, farmId: match.farm.id, farmerId: offer.farmerId, factoryId: offer.factoryId, quantityKg: agreedQuantity, finalWeightKg: null, pricePerKg: agreedPrice, finalGrade: null, transportationCost: offer.transportationCost, farmerTransportCost: calculation.farmerTransportCost, deductions: 0, grossAmount: calculation.grossAmount, netAmount: calculation.netAmount, paymentStatus: "pending", deliveryStatus: "Awaiting pickup", status: "OFFER_ACCEPTED", receiptConfirmed: false, disputeReason: null, createdAt: now, history: [{ status: "OFFER_ACCEPTED", by: identity.id, note: "Offer accepted. Payment remains pending until confirmed.", at: now }] };
-          state.transactions.unshift(transaction);
-          pushNotification(state, offer.factoryId, "Offer accepted", `Offer for ${agreedQuantity.toLocaleString()} kg was accepted. Transaction ${transaction.id} is ready.`, "transaction");
-          return { offer, transaction };
+          offerHistory(offer, "accepted", identity.id, "Farmer accepted the buyer's offer. Coordinate directly; any sale takes place outside CassavaLink.");
+          pushNotification(state, buyerId, "Offer accepted", `Your offer for ${agreedQuantity.toLocaleString()} kg was accepted. Contact the farmer to coordinate directly.`, "offer");
+          return offer;
         }
         if (decision === "reject") {
           if (identity.role !== "farmer" || identity.id !== offer.farmerId) throw new Error("403:Only the listed farmer can reject this offer.");
           offer.status = "rejected"; offerHistory(offer, "rejected", identity.id, "Farmer rejected the offer.");
-          pushNotification(state, offer.factoryId, "Offer declined", `Your offer ${offer.id} was declined by the farmer.`, "offer");
+          pushNotification(state, buyerId, "Offer declined", `Your offer ${offer.id} was declined by the farmer.`, "offer");
           return offer;
         }
         if (decision === "counter") {
@@ -236,117 +275,44 @@ export async function POST(request: Request) {
           if (!price || !quantity || !listing || quantity > listing.availableQuantityKg) throw new Error("Counter price and quantity must be valid and within the available harvest.");
           offer.counterPricePerKg = price; offer.counterQuantityKg = quantity; offer.status = "countered";
           offerHistory(offer, "countered", identity.id, `Farmer countered at ${price} LAK/kg for ${quantity} kg.`);
-          pushNotification(state, offer.factoryId, "Farmer sent a counteroffer", `Counteroffer: ${price.toLocaleString()} LAK/kg for ${quantity.toLocaleString()} kg.`, "offer");
+          pushNotification(state, buyerId, "Farmer sent a counteroffer", `Counteroffer: ${price.toLocaleString()} LAK/kg for ${quantity.toLocaleString()} kg.`, "offer");
           return offer;
         }
         if (decision === "withdraw") {
-          if (identity.role !== "factory" || identity.id !== offer.factoryId) throw new Error("403:Only the submitting factory can withdraw this offer.");
-          offer.status = "withdrawn"; offerHistory(offer, "withdrawn", identity.id, "Factory withdrew its offer.");
+          const ownerRole = offer.middlemanId ? "middleman" : "factory";
+          const ownerId = offer.middlemanId ?? offer.factoryId;
+          if (identity.role !== ownerRole || identity.id !== ownerId) throw new Error("403:Only the buyer who submitted this offer can withdraw it.");
+          offer.status = "withdrawn"; offerHistory(offer, "withdrawn", identity.id, "Buyer withdrew its offer.");
           return offer;
         }
         if (decision === "accept-counter") {
-          if (identity.role !== "factory" || identity.id !== offer.factoryId || offer.status !== "countered") throw new Error("403:Only the factory can accept this counteroffer.");
+          if (offer.middlemanId) throw new Error("Middleman purchases cannot accept negotiated prices.");
+          const ownerRole = offer.middlemanId ? "middleman" : "factory";
+          const ownerId = offer.middlemanId ?? offer.factoryId;
+          if (identity.role !== ownerRole || identity.id !== ownerId || offer.status !== "countered") throw new Error("403:Only the buyer who submitted this offer can accept the counteroffer.");
           const match = listingWithFarm(state, offer.listingId);
           const quantity = offer.counterQuantityKg; const price = offer.counterPricePerKg;
           if (!match || !quantity || !price || match.listing.availableQuantityKg < quantity) throw new Error("The counteroffer quantity is no longer available.");
           offer.status = "accepted"; offer.quantityKg = quantity; offer.pricePerKg = price;
-          match.listing.availableQuantityKg -= quantity;
-          if (match.listing.availableQuantityKg === 0) match.listing.status = "sold";
-          offerHistory(offer, "accepted", identity.id, "Factory accepted counteroffer; quantity reserved.");
-          const calculation = calculatePrice({ pricePerKg: price, quantityKg: quantity, transportArrangement: offer.transportArrangement, transportationCost: offer.transportationCost });
-          const transaction: DemoTransaction = { id: `CL-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`, offerId: offer.id, listingId: offer.listingId, farmId: match.farm.id, farmerId: offer.farmerId, factoryId: offer.factoryId, quantityKg: quantity, finalWeightKg: null, pricePerKg: price, finalGrade: null, transportationCost: offer.transportationCost, farmerTransportCost: calculation.farmerTransportCost, deductions: 0, grossAmount: calculation.grossAmount, netAmount: calculation.netAmount, paymentStatus: "pending", deliveryStatus: "Awaiting pickup", status: "OFFER_ACCEPTED", receiptConfirmed: false, disputeReason: null, createdAt: now, history: [{ status: "OFFER_ACCEPTED", by: identity.id, note: "Counteroffer accepted; payment remains pending.", at: now }] };
-          state.transactions.unshift(transaction);
-          pushNotification(state, offer.farmerId, "Counteroffer accepted", `The factory accepted your offer. Transaction ${transaction.id} is ready.`, "transaction");
-          return { offer, transaction };
+          offerHistory(offer, "accepted", identity.id, "Factory accepted the farmer's offer. Coordinate directly; any sale takes place outside CassavaLink.");
+          pushNotification(state, offer.farmerId, "Counteroffer accepted", "The buyer accepted your offer. Contact them to coordinate directly.", "offer");
+          return offer;
         }
         throw new Error("Choose accept, reject, counter, or withdraw.");
-      }
-      if (action === "update-transaction") {
-        const transaction = state.transactions.find((item) => item.id === payload.transactionId);
-        if (!transaction) throw new Error("Transaction not found.");
-        const isFarmer = identity.role === "farmer" && identity.id === transaction.farmerId;
-        const isFactory = identity.role === "factory" && identity.id === transaction.factoryId;
-        const requestedStatus = text(payload.status, 40) as TransactionStatus;
-        const allowed: Record<string, string[]> = {
-          OFFER_ACCEPTED: ["AWAITING_PICKUP", "CANCELLED"], AWAITING_PICKUP: ["IN_TRANSIT", "DELIVERED", "CANCELLED"],
-          IN_TRANSIT: ["DELIVERED"], DELIVERED: ["INSPECTION_PENDING"], INSPECTION_PENDING: ["PAYMENT_PENDING"],
-          PAYMENT_PENDING: ["PAYMENT_CONFIRMED"], PAYMENT_CONFIRMED: ["COMPLETED"],
-        };
-        if (payload.operation === "dispute") {
-          if (!isFarmer && !isFactory) throw new Error("403:Only a transaction participant can report an issue.");
-          const reason = text(payload.reason, 500); if (!reason) throw new Error("Describe the transaction issue.");
-          transaction.status = "DISPUTED"; transaction.disputeReason = reason;
-          transaction.history.unshift({ status: "DISPUTED", by: identity.id, note: reason, at: now });
-          pushNotification(state, isFarmer ? transaction.factoryId : transaction.farmerId, "Transaction issue reported", `Transaction ${transaction.id} was flagged for review.`, "dispute");
-          return transaction;
-        }
-        if (payload.operation === "resolve-dispute") {
-          if (identity.role !== "admin" || transaction.status !== "DISPUTED") throw new Error("403:Only an administrator can resolve an open dispute.");
-          const resolution = text(payload.resolution, 800);
-          const outcome = payload.outcome === "cancelled" ? "CANCELLED" : "PAYMENT_PENDING";
-          if (!resolution) throw new Error("Add a resolution note before closing the dispute.");
-          if (outcome === "CANCELLED") {
-            const listing = state.listings.find((item) => item.id === transaction.listingId);
-            if (listing) { listing.availableQuantityKg += transaction.quantityKg; listing.status = "available"; }
-          }
-          transaction.status = outcome; transaction.deliveryStatus = statusLabel(outcome);
-          transaction.disputeReason = `${transaction.disputeReason ?? "Issue"} · Resolution: ${resolution}`;
-          transaction.history.unshift({ status: outcome, by: identity.id, note: `Admin resolution: ${resolution}`, at: now });
-          pushNotification(state, transaction.farmerId, "Dispute resolution recorded", `Transaction ${transaction.id}: ${resolution}`, "dispute");
-          pushNotification(state, transaction.factoryId, "Dispute resolution recorded", `Transaction ${transaction.id}: ${resolution}`, "dispute");
-          return transaction;
-        }
-        if (payload.operation === "confirm-receipt") {
-          if (!isFarmer || transaction.status !== "PAYMENT_CONFIRMED") throw new Error("403:Only the farmer can confirm receipt after payment is marked confirmed.");
-          transaction.receiptConfirmed = true; transaction.status = "COMPLETED";
-          transaction.history.unshift({ status: "COMPLETED", by: identity.id, note: "Farmer confirmed receipt. No payment transfer was performed by the demo.", at: now });
-          return transaction;
-        }
-        if (payload.operation === "inspection") {
-          if (!isFactory || (transaction.status !== "DELIVERED" && transaction.status !== "INSPECTION_PENDING")) throw new Error("403:Factory inspection can only be recorded after delivery.");
-          const weight = numeric(payload.finalWeightKg, 1, transaction.quantityKg * 1.25);
-          if (!weight) throw new Error("Enter the inspected weight in kilograms.");
-          transaction.finalWeightKg = weight;
-          transaction.finalGrade = payload.grade === "A" || payload.grade === "C" ? payload.grade : "B";
-          const calculation = calculatePrice({ pricePerKg: transaction.pricePerKg, quantityKg: weight, transportArrangement: transaction.farmerTransportCost === 0 ? "factory-pickup" : "farmer-delivery", transportationCost: transaction.farmerTransportCost, deductions: numeric(payload.deductions ?? 0, 0, 100_000_000) ?? 0 });
-          transaction.grossAmount = calculation.grossAmount; transaction.netAmount = calculation.netAmount; transaction.deductions = calculation.deductions;
-          transaction.status = "PAYMENT_PENDING"; transaction.paymentStatus = "pending"; transaction.deliveryStatus = "Inspection complete";
-          transaction.history.unshift({ status: "PAYMENT_PENDING", by: identity.id, note: `Inspection saved: ${weight} kg, grade ${transaction.finalGrade}.`, at: now });
-          if (transaction.history[1]?.status !== "INSPECTION_PENDING") transaction.history.splice(1, 0, { status: "INSPECTION_PENDING", by: identity.id, note: "Inspection started after delivery.", at: now });
-          pushNotification(state, transaction.farmerId, "Inspection recorded", `Final inspected quantity for ${transaction.id} is ${weight.toLocaleString()} kg.`, "transaction");
-          return transaction;
-        }
-        if (payload.operation === "payment") {
-          if (!isFactory || transaction.status !== "PAYMENT_PENDING") throw new Error("403:Only the factory can mark its payment status as confirmed after inspection.");
-          transaction.paymentStatus = "confirmed"; transaction.status = "PAYMENT_CONFIRMED";
-          transaction.history.unshift({ status: "PAYMENT_CONFIRMED", by: identity.id, note: "Factory marked payment confirmed. This demo does not transfer money.", at: now });
-          pushNotification(state, transaction.farmerId, "Payment status updated", `The factory marked payment confirmed for ${transaction.id}. Confirm receipt after checking independently.`, "payment");
-          return transaction;
-        }
-        if ((!isFactory && !isFarmer) || !allowed[transaction.status]?.includes(requestedStatus)) throw new Error("403:That transaction status change is not allowed.");
-        if (isFarmer && requestedStatus !== "CANCELLED") throw new Error("403:Only the factory may update delivery progress.");
-        if (isFactory && requestedStatus === "COMPLETED") throw new Error("The farmer must confirm receipt before completion.");
-        if (requestedStatus === "CANCELLED") {
-          if (transaction.status !== "OFFER_ACCEPTED" && transaction.status !== "AWAITING_PICKUP") throw new Error("This transaction can no longer be cancelled.");
-          const listing = state.listings.find((item) => item.id === transaction.listingId);
-          if (listing) { listing.availableQuantityKg += transaction.quantityKg; listing.status = "available"; }
-          transaction.paymentStatus = "pending";
-        }
-        if (requestedStatus === "PAYMENT_CONFIRMED") throw new Error("Use the payment confirmation action after inspection.");
-        transaction.status = requestedStatus; transaction.deliveryStatus = statusLabel(requestedStatus);
-        transaction.history.unshift({ status: requestedStatus, by: identity.id, note: `Status updated to ${statusLabel(requestedStatus)}.`, at: now });
-        pushNotification(state, isFarmer ? transaction.factoryId : transaction.farmerId, "Transaction updated", `${transaction.id}: ${statusLabel(requestedStatus)}.`, "transaction");
-        return transaction;
       }
       if (action === "send-message") {
         const listingId = text(payload.listingId, 100) || null; const recipientId = text(payload.recipientId, 100); const content = text(payload.content, 1000);
         const message: DemoMessage = { id: `message-${crypto.randomUUID()}`, senderId: identity.id, recipientId, listingId, content, createdAt: now };
-        if (!content || (identity.role !== "farmer" && identity.role !== "factory")) throw new Error("Sign in as a farmer or factory and write a message.");
+        if (!content || (identity.role !== "farmer" && identity.role !== "factory" && identity.role !== "middleman")) throw new Error("Sign in as a farmer, factory, or middleman and write a message.");
         const targetListing = listingId ? state.listings.find((listing) => listing.id === listingId) : undefined;
         if (listingId && !targetListing) throw new Error("Listing not found.");
-        if (identity.role === "farmer" && !state.factoryProfiles.some((factory) => factory.id === recipientId)) throw new Error("Choose a verified factory participant.");
-        if (identity.role === "factory" && !state.farms.some((farm) => farm.farmerId === recipientId)) throw new Error("Choose a farmer participant.");
-        if (targetListing && (targetListing.farmerId !== (identity.role === "farmer" ? identity.id : recipientId))) throw new Error("This listing is not part of your conversation with that participant.");
+        const middlemanRecipient = state.accounts.some((account) => account.id === recipientId && account.role === "middleman" && account.status === "Approved") || recipientId === DEMO_ACCOUNTS.middleman.id;
+        const farmerRecipient = state.farms.some((farm) => farm.farmerId === recipientId) || state.accounts.some((account) => account.id === recipientId && account.role === "farmer" && account.status === "Approved");
+        const factoryRecipient = state.factoryProfiles.some((factory) => factory.id === recipientId);
+        if (identity.role === "farmer" && !factoryRecipient && !middlemanRecipient) throw new Error("Choose a verified factory or approved middleman participant.");
+        if (identity.role === "factory" && !farmerRecipient && !middlemanRecipient) throw new Error("Choose a farmer or approved middleman participant.");
+        if (identity.role === "middleman" && !farmerRecipient && !factoryRecipient) throw new Error("Choose a farmer or factory participant.");
+        if (targetListing && targetListing.farmerId !== (identity.role === "farmer" ? identity.id : recipientId)) throw new Error("This listing is not part of your conversation with that participant.");
         state.messages.unshift(message); pushNotification(state, recipientId, "New message", content.slice(0, 100), "message");
         return message;
       }
@@ -354,6 +320,55 @@ export async function POST(request: Request) {
         const notification = state.notifications.find((item) => item.id === payload.id && item.userId === identity.id);
         if (!notification) throw new Error("Notification not found.");
         notification.readAt = now; return notification;
+      }
+      if (action === "approve-account" || action === "reject-account") {
+        if (identity.role !== "admin") throw new Error("403:Administrator access is required to review accounts.");
+        const account = state.accounts.find((item) => item.id === payload.accountId);
+        if (!account) throw new Error("Account not found.");
+        if (account.id === identity.id) throw new Error("403:Administrators cannot change their own account status.");
+        if (account.status !== "Pending Admin Approval") throw new Error("Only verified registrations awaiting admin review can be approved or rejected.");
+        account.status = action === "approve-account" ? "Approved" : "Rejected";
+        account.rejectionReason = action === "reject-account" ? text(payload.reason, 400) || null : null;
+        if (account.status === "Approved" && account.role === "factory" && !state.factoryProfiles.some((factory) => factory.id === account.id)) {
+          state.factoryProfiles.push({ id: account.id, name: account.name, province: "Not provided", district: "Not provided", verified: false, capacityTonnes: 1 });
+        }
+        return publicAccount(account);
+      }
+      if (action === "set-official-price") {
+        if (identity.role !== "factory") throw new Error("403:Only a factory can set an official buying price.");
+        const factory = state.factoryProfiles.find((item) => item.id === identity.id);
+        if (!factory?.verified) throw new Error("This factory must be verified before setting an official buying price.");
+        const province = text(payload.province, 80) || factory.province;
+        const district = text(payload.district, 80) || factory.district;
+        const grade = payload.grade === "A" || payload.grade === "C" ? payload.grade : payload.grade === "B" ? "B" : null;
+        const pricePerKg = numeric(payload.pricePerKg, 1, 100_000);
+        const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Vientiane", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+        if (!province || !district || !grade || !pricePerKg) throw new Error("Province, district, grade, and a valid daily price are required.");
+        let price = state.prices.find((item) =>
+          item.priceType === "official" &&
+          item.factoryId === identity.id &&
+          item.province === province &&
+          item.district === district &&
+          item.grade === grade &&
+          item.effectiveDate === today,
+        );
+        if (price) {
+          price.pricePerKg = pricePerKg;
+        } else {
+          price = {
+            id: `official-${crypto.randomUUID()}`,
+            province,
+            district,
+            grade,
+            pricePerKg,
+            source: `Official factory daily price · ${factory.name} (prototype)`,
+            effectiveDate: today,
+            priceType: "official",
+            factoryId: identity.id,
+          };
+          state.prices.unshift(price);
+        }
+        return price;
       }
       if (action === "save-price") {
         if (identity.role !== "admin") throw new Error("403:Administrator access is required to manage reference prices.");
@@ -366,7 +381,7 @@ export async function POST(request: Request) {
         if (identity.role !== "admin") throw new Error("403:Administrator access is required to edit reference prices.");
         const price = state.prices.find((item) => item.id === payload.id);
         const pricePerKg = numeric(payload.pricePerKg, 1, 100_000);
-        if (!price || !pricePerKg) throw new Error("Choose an existing price and enter a valid amount.");
+        if (!price || price.priceType === "official" || !pricePerKg) throw new Error("Choose an existing regional reference price and enter a valid amount.");
         price.pricePerKg = pricePerKg;
         if (payload.province !== undefined) price.province = text(payload.province, 80) || price.province;
         if (payload.district !== undefined) price.district = text(payload.district, 80) || price.district;
@@ -403,8 +418,4 @@ export async function POST(request: Request) {
 
 function dateAfter(days: number) {
   const date = new Date(); date.setDate(date.getDate() + days); return date.toISOString().slice(0, 10);
-}
-
-function statusLabel(status: TransactionStatus) {
-  return ({ OFFER_ACCEPTED: "Offer accepted", AWAITING_PICKUP: "Awaiting pickup", IN_TRANSIT: "In transit", DELIVERED: "Delivered", INSPECTION_PENDING: "Inspection pending", PAYMENT_PENDING: "Payment pending", PAYMENT_CONFIRMED: "Payment confirmed", COMPLETED: "Completed", DISPUTED: "Disputed", CANCELLED: "Cancelled" })[status];
 }
