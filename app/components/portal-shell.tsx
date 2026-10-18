@@ -21,8 +21,7 @@ const portalNavigation: Record<PortalRole, { label: string; href: string; icon: 
   ],
   factory: [
     { label: "Dashboard", href: "/factory/dashboard", icon: House },
-    { label: "Marketplace", href: "/factory/marketplace", icon: MapPin },
-    { label: "Find farms", href: "/factory/marketplace", icon: Sprout },
+    { label: "Marketplace", href: "/factory/marketplace", icon: Sprout },
     { label: "Market prices", href: "/factory/prices", icon: CircleDollarSign },
     { label: "My offers", href: "/factory/offers", icon: Handshake },
     { label: "Messages", href: "/factory/messages", icon: MessageCircle },
@@ -55,7 +54,7 @@ export function PortalShell({
         <p className="portal-kicker">{isFactory ? "Factory workspace" : role === "admin" ? "Administration" : "Farmer workspace"}</p>
         <nav className="portal-nav" aria-label={`${role} navigation`}>
           {portalNavigation[role].map(({ label, href, icon: Icon }) => (
-            <Link className={href === activeHref ? "active" : ""} href={href} key={label}>
+            <Link className={href === activeHref ? "active" : ""} href={href} key={label} aria-current={href === activeHref ? "page" : undefined}>
               <Icon size={16} strokeWidth={1.8} />{label}
             </Link>
           ))}

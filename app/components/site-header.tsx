@@ -30,6 +30,7 @@ export function SiteHeader() {
           <Link href="/prices">{dictionary.nav.prices}</Link>
           <Link href="/about">{dictionary.nav.about}</Link>
           <Link href="/register">{dictionary.nav.join}</Link>
+          <Link className="mobile-nav-login" href="/login">{dictionary.nav.login}</Link>
         </nav>
         <div className="header-actions">
           <button className="lang-button" onClick={toggleLanguage} aria-label="Change language">

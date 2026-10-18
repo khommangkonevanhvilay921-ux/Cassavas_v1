@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Building2, CircleDollarSign, Handshake, House, MapPin, MessageCircle, Send, Sprout } from "lucide-react";
 import { DemoLogout } from "@/app/components/demo-login";
+import { Brand } from "@/app/components/site-header";
 import type { DemoFarm, DemoListing, DemoMessage, DemoOffer, DemoPrice, DemoRole } from "@/app/lib/demo-types";
 import { getOfficialPrice } from "@/app/lib/pricing";
 
@@ -91,10 +92,10 @@ export function MiddlemanWorkspace({ section, initialRecipient = "", initialList
   return (
     <div className="portal">
       <aside className="portal-sidebar">
-        <div className="portal-logo"><Link href="/">CassavaLink</Link></div>
+        <div className="portal-logo"><Brand /></div>
         <p className="portal-kicker">Middleman workspace</p>
         <nav className="portal-nav" aria-label="Middleman navigation">
-          {navigation.map(([label, href, Icon]) => <Link className={href === `/middleman/${active}` ? "active" : ""} href={href} key={href}><Icon size={16} strokeWidth={1.8} />{label}</Link>)}
+          {navigation.map(([label, href, Icon]) => <Link className={href === `/middleman/${active}` ? "active" : ""} href={href} key={href} aria-current={href === `/middleman/${active}` ? "page" : undefined}><Icon size={16} strokeWidth={1.8} />{label}</Link>)}
         </nav>
         <div className="portal-user"><span className="user-avatar">M</span><span><strong>{identity.name}</strong><span>Middleman account</span></span></div>
       </aside>

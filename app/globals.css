@@ -1,19 +1,24 @@
 @import "tailwindcss";
 
+
 :root {
-  --paper: #f7f9f6;
+  --paper: #f6f8f3;
   --white: #fff;
-  --ink: #17231b;
-  --muted: #67756b;
-  --line: #e2e9e1;
-  --green: #16834a;
-  --green-dark: #105c38;
-  --green-soft: #eaf3ec;
-  --blue: #1976d2;
-  --blue-dark: #155da4;
-  --blue-soft: #eaf3fb;
+  --ink: #1b2b20;
+  --muted: #637267;
+  --line: #dfe7dd;
+  --green: #277044;
+  --green-dark: #1d5233;
+  --green-soft: #e9f2e8;
+  --blue: #52775d;
+  --blue-dark: #31593b;
+  --blue-soft: #edf3ec;
+  --radius-sm: 7px;
+  --radius-md: 11px;
+  --radius-lg: 16px;
+  --shadow-soft: 0 2px 8px rgba(28, 51, 34, .045);
   --serif: Georgia, "Times New Roman", serif;
-  --sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  --sans: "Segoe UI", "Avenir Next", Avenir, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -23,12 +28,14 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; text-decoration: none; }
-button, select { font: inherit; }
-button, a, select { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid #8dc9a1; outline-offset: 3px; }
+button, input, select, textarea { font: inherit; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #78a985; outline-offset: 3px; }
 .container { width: min(1160px, calc(100% - 48px)); margin-inline: auto; }
 .site-header { position: relative; z-index: 10; background: rgba(247, 249, 246, .94); border-bottom: 1px solid rgba(226, 233, 225, .8); }
 .header-inner { min-height: 78px; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
@@ -190,7 +197,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
   .portal-content { padding-inline: 24px; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .container { width: min(100% - 32px, 560px); }
   .header-inner { min-height: 66px; gap: 10px; }
   .main-nav { display: none; }
@@ -447,7 +454,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
   .price-calculator { grid-template-columns: 1fr 1fr; }
   .price-calculator > div:first-child { grid-column: 1/-1; }
 }
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .workspace-topline { flex-direction: column; gap: 0; }
   .workspace-session { width: 100%; margin: -11px 0 16px; justify-content: space-between; }
   .workspace-tools { margin: -5px 0 12px; justify-content: space-between; }
@@ -487,4 +494,159 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid
   .portal-sidebar, .portal-topbar, .workspace-session, .workspace-tools, .record-actions, .workspace-actions { display: none !important; }
   .portal { display: block; background: white; }
   .portal-content { max-width: none; padding: 0; }
+}
+
+.site-header { background: rgba(246, 248, 243, .96); }
+.hero-panel { border-radius: var(--radius-lg); background: #edf3ea; }
+.hero-copy { padding-left: clamp(30px, 5vw, 62px); }
+.price-strip, .buyer, .cta-band { border-radius: var(--radius-md); }
+.price-strip { box-shadow: var(--shadow-soft); }
+.benefit-band { overflow: hidden; border-radius: var(--radius-lg); }
+.benefit + .benefit { background: #24533a; }
+.benefit + .benefit .benefit-label { color: #c5dec9; }
+.buyer { box-shadow: var(--shadow-soft); }
+.buyer:nth-child(2) .buyer-logo { color: var(--green-dark); background: var(--green-soft); }
+.buyer:nth-child(3) .buyer-logo { color: #765b36; background: #f3efe5; }
+
+.portal {
+  grid-template-columns: 252px minmax(0, 1fr);
+  background: #f5f7f2;
+}
+.portal.factory { background: #f5f7f2; }
+.portal-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 25px 17px 18px;
+  background: #fff;
+}
+.portal-logo { padding: 0 9px 22px; }
+.portal-kicker { margin: 22px 10px 10px; font-size: 10px; letter-spacing: .04em; }
+.portal-nav { gap: 4px; }
+.portal-nav a {
+  min-height: 43px;
+  padding-inline: 11px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.portal-nav a.active, .factory .portal-nav a.active, .admin .portal-nav a.active {
+  color: var(--green-dark);
+  background: var(--green-soft);
+  font-weight: 700;
+}
+.portal-user { padding: 16px 8px 0; }
+.user-avatar { width: 38px; height: 38px; }
+.portal-user strong { font-size: 12px; }
+.portal-user span { font-size: 11px; }
+.portal-topbar { height: 66px; padding-inline: clamp(22px, 3vw, 40px); }
+.mobile-nav-login { display: none; }
+.portal-breadcrumb { font-size: 12px; }
+.portal-content { max-width: 1320px; padding: 38px clamp(22px, 3vw, 40px) 64px; }
+.portal-heading { margin-bottom: 26px; }
+.portal-heading h1 { font: 650 32px/1.15 var(--sans); letter-spacing: -.025em; }
+.portal-heading p { margin-top: 8px; color: #58695c; font-size: 14px; line-height: 1.55; }
+.demo-note { color: #6c7255; font-size: 11px; letter-spacing: .035em; }
+.workspace-session { min-height: 42px; padding: 7px 12px; border-radius: var(--radius-sm); font-size: 12px; }
+.workspace-tools { min-height: 40px; margin: -8px 0 16px; justify-content: space-between; font-size: 12px; }
+.plain-action { font-size: 12px; }
+.notice { padding: 13px 15px; border-radius: var(--radius-sm); font-size: 13px; }
+.metric-grid { gap: 14px; }
+.metric-grid-expanded { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.metric-card, .panel, .record-card, .empty-panel, .placeholder {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+}
+.metric-card { min-width: 0; padding: 19px; }
+.metric-label { font-size: 12px; }
+.metric-value { margin-top: 13px; font-size: 28px; letter-spacing: -.025em; }
+.metric-sub { font-size: 12px; }
+.metric-link:hover { transform: translateY(-2px); border-color: #9cbea1; }
+.panel { padding: 23px; }
+.panel-head { margin-bottom: 19px; }
+.panel-head h2 { font-size: 15px; }
+.panel-head a { font-size: 12px; }
+.workspace-grid { gap: 16px; margin-top: 16px; }
+.dashboard-price-callout { padding: 16px 19px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); }
+.dashboard-price-callout > span { font-size: 13px; }
+.dashboard-price-callout > strong { font-size: 16px; }
+.dashboard-price-callout > a { font-size: 12px; }
+.activity-item { padding: 13px 0; }
+.activity-item strong { font-size: 12px; }
+.activity-item span { font-size: 11px; line-height: 1.5; }
+.quick-action { min-height: 88px; padding: 15px; border-radius: var(--radius-sm); font-size: 12px; }
+.workspace-actions .button, .record-actions .button { min-height: 40px; font-size: 12px; }
+.search-field, .select-filter { min-height: 42px; border-radius: var(--radius-sm); }
+.search-field input, .select-filter select { font-size: 13px; }
+.view-toggle, .range-tabs { border-radius: var(--radius-sm); }
+.view-toggle button, .range-tabs button { min-height: 36px; font-size: 12px; }
+.record-grid { gap: 15px; }
+.record-card { padding: 19px; }
+.record-card-head strong { font-size: 14px; }
+.record-card-head span { font-size: 12px; }
+.detail-row { padding: 10px 0; font-size: 12px; }
+.detail-row > b { font-size: 12px; }
+.status-badge, .grade-badge { min-height: 24px; padding: 4px 9px; border-radius: 999px; font-size: 11px; }
+.empty-panel { min-height: 230px; padding: 30px; }
+.empty-panel h1, .empty-panel h2 { font: 600 24px/1.25 var(--sans); }
+.empty-panel p, .empty-line, .muted-copy { font-size: 13px; }
+.table-panel { border-radius: var(--radius-md); }
+.table-panel table { min-width: 680px; }
+.table-panel th { padding: 12px; font-size: 11px; }
+.table-panel td { padding: 13px 12px; font-size: 12px; }
+.table-panel td b { font-size: 12px; }
+.table-panel td small { font-size: 11px; }
+.form-grid { gap: 16px; }
+.form-grid label, .inline-form label, .price-calculator label { gap: 7px; font-size: 12px; }
+.form-grid input, .form-grid select, .form-grid textarea,
+.inline-form input, .inline-form select, .inline-form textarea,
+.price-calculator input {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-color: #cdd9ce;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+.form-grid textarea, .inline-form textarea { min-height: 96px; }
+.button { min-height: 44px; border-radius: var(--radius-sm); }
+.button:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.inline-form { padding: 15px; border-radius: var(--radius-sm); }
+.workspace-bottom-note { font-size: 11px; }
+.demo-login h1 { font: 650 40px/1.15 var(--sans); }
+.demo-account { min-height: 88px; border-radius: var(--radius-sm); }
+.demo-account strong, .demo-account small { font-size: 11px; }
+.demo-account b { font-size: 14px; }
+
+@media (max-width: 1100px) {
+  .portal { grid-template-columns: 220px minmax(0, 1fr); }
+  .portal-content { padding-inline: 24px; }
+  .metric-grid-expanded { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 800px) {
+  .portal { display: block; }
+  .portal-sidebar { position: static; height: auto; padding: 14px 16px; }
+  .portal-logo { padding: 0; }
+  .portal-nav { margin-top: 12px; padding: 0 0 4px; scroll-padding-inline: 16px; }
+  .portal-nav a { min-height: 40px; padding-inline: 11px; font-size: 12px; }
+  .portal-topbar { height: 52px; padding-inline: 16px; }
+  .site-header.menu-open .main-nav .mobile-nav-login { display: block; }
+  .portal-content { padding: 26px 16px 44px; }
+  .portal-heading h1 { font-size: 28px; }
+  .workspace-tools { gap: 8px; font-size: 11px; }
+  .metric-grid-expanded { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-card { padding: 15px; }
+  .metric-label { font-size: 11px; }
+  .metric-value { font-size: 24px; }
+  .panel { padding: 18px; }
+  .table-panel { padding: 12px; }
+  .table-panel table { min-width: 680px; }
+  .record-card { padding: 16px; }
+  .form-grid input, .form-grid select, .form-grid textarea,
+  .inline-form input, .inline-form select, .inline-form textarea { font-size: 16px; }
+  .portal-top-actions { gap: 12px; }
+}
+@media (max-width: 380px) {
+  .portal-content { padding-inline: 12px; }
+  .portal-sidebar { padding-inline: 12px; }
+  .metric-grid-expanded { grid-template-columns: 1fr; }
+  .workspace-tools { align-items: flex-start; flex-direction: column; }
 }
